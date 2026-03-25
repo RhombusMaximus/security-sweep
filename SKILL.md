@@ -64,13 +64,16 @@ bash ~/.openclaw/workspace/skills/security-sweep/scripts/skill-scan.sh \
 The scan detects potential secrets and can encrypt them to your Notion secrets store:
 
 ```bash
-# Encrypt a found secret (when prompted by scan or manually)
-node ~/.openclaw/scripts/notion-secrets.js put <label> "<secret>"
+# Store a secret — use NOTION_MASTER_PASSWORD env var (required for reliable scripting)
+NOTION_MASTER_PASSWORD="your-password" node ~/.openclaw/scripts/notion-secrets.js put <label> "<secret>"
 
-# List all stored secrets (blob names only, values never exposed)
+# List all stored secrets (names only, no password needed)
 node ~/.openclaw/scripts/notion-secrets.js list
 
-# Decrypt a stored secret (interactive, requires master password)
+# Get a secret's encrypted blob (no password needed to retrieve)
+node ~/.openclaw/scripts/notion-secrets.js get <label>
+
+# Decrypt a blob (interactive prompt)
 node ~/.openclaw/scripts/notion-secrets.js decrypt "<blob>"
 ```
 
