@@ -82,6 +82,8 @@ The `--encrypt-found` flag is powerful but **assumes your private skill director
 
 **Always review the findings before any auto-encryption** — the flag is off by default for this reason.
 
+> **⚠️ CRITICAL:** The master password is the only way to decrypt your secrets. **Forget it and the secrets are permanently unrecoverable** — AES-256-GCM with PBKDF2 (100k iterations) is intentionally slow and cannot be brute-forced. Store it in a password manager.
+
 ## Auto-Encrypt to Notion
 
 When `--encrypt-found` is used and `NOTION_MASTER_PASSWORD` is set, found secrets are encrypted to your Notion secrets store before being removed.

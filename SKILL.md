@@ -58,6 +58,8 @@ bash ~/.openclaw/workspace/skills/security-sweep/scripts/skill-scan.sh \
 ## When Secrets Are Found
 
 > ⚠️ **WARNING:** `--encrypt-found` encrypts secrets to Notion before removal. This assumes your private skill directory is already secure. If your private skills already contain uncommitted real credentials, encrypting them to Notion does not retroactively protect those already-exposed secrets. Review findings manually before using this flag on an untrusted or already-compromised skillbase.
+>
+> **⚠️ CRITICAL:** The master password is the only decryption key. **Forget it and the secrets are permanently unrecoverable** — AES-256-GCM with PBKDF2 (100k iterations) is intentionally slow and cannot be brute-forced. Store it in a password manager.
 
 The scan detects potential secrets and can encrypt them to your Notion secrets store:
 
