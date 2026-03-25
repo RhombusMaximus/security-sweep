@@ -1,6 +1,7 @@
 ---
 name: security-sweep
 description: Security scanner for OpenClaw skills and plugins. Scans for hardcoded secrets, dangerous exec patterns, dependency vulnerabilities, and network egress. When secrets are found, auto-encrypts them to Notion using the user's encrypted secrets store. Use when auditing skills/plugins, before publishing to ClawHub or GitHub, or when a user requests a security review.
+version: 1.0.1
 ---
 
 # Security Sweep — Skill & Plugin Auditor
@@ -55,6 +56,8 @@ bash ~/.openclaw/workspace/skills/security-sweep/scripts/skill-scan.sh \
 ```
 
 ## When Secrets Are Found
+
+> ⚠️ **WARNING:** `--encrypt-found` encrypts secrets to Notion before removal. This assumes your private skill directory is already secure. If your private skills already contain uncommitted real credentials, encrypting them to Notion does not retroactively protect those already-exposed secrets. Review findings manually before using this flag on an untrusted or already-compromised skillbase.
 
 The scan detects potential secrets and can encrypt them to your Notion secrets store:
 

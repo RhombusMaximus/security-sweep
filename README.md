@@ -67,6 +67,21 @@ Sample output:
 
 ---
 
+## ⚠️ Warning: `--encrypt-found` Requires a Secure Private Skillbase
+
+The `--encrypt-found` flag is powerful but **assumes your private skill directory is already secure**. It encrypts found secrets to Notion before removal — but:
+
+- **If your private skills already contain real secrets, those secrets are already exposed** — the scan is read-only and doesn't cause leaks
+- **If your Notion is compromised, encrypted blobs are useless without the master password** — but the attacker gets the ciphertext
+- **The encryption protects secrets at rest in Notion** — it does NOT protect secrets in transit or in your shell history
+
+**You should NOT use `--encrypt-found` if:**
+- Your private skillbase may contain uncommitted work-in-progress with real credentials
+- You haven't set up the Notion secrets store yet
+- You're scanning a third-party skill you don't control
+
+**Always review the findings before any auto-encryption** — the flag is off by default for this reason.
+
 ## Auto-Encrypt to Notion
 
 When `--encrypt-found` is used and `NOTION_MASTER_PASSWORD` is set, found secrets are encrypted to your Notion secrets store before being removed.

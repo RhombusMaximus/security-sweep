@@ -140,6 +140,7 @@ scan_skill() {
     local skill_critical=0 skill_high=0 skill_medium=0 skill_low=0 skill_info=0
 
     # Build the exclude args — skip node_modules, .git, and this script itself
+    # NOTE: "secret" pattern is for detection only, not real secrets in this file
     local EXCLUDE_ARGS="--exclude=node_modules --exclude=.git --exclude=full-scan.sh --exclude=quick-scan.sh --exclude=*.min.js"
 
     # ── 1. Secret patterns ────────────────────────────────────────────
