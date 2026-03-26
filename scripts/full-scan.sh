@@ -16,15 +16,11 @@ QUIET=false
 ENCRYPT_FOUND=false
 NOTION_SECRETS_SCRIPT="${HOME}/.openclaw/scripts/notion-secrets.js"
 
-# Patterns for secret detection — one per line, compiled into grep regex
-# These are descriptions, NOT real secrets
+# Patterns for secret detection — tightened to reduce false positives
+# Only match actual key=value patterns, not documentation text
 SECRET_PATTERNS=(
-    "api[_-]?key"
-    "token"
-    "password"
-    "secret"
-    "credential"
-    "private[_-]?key"
+    "(api[_-]?key|token|password|secret|credential)\s*[=:]\s*[\"'][^'\"]{8,}[\"']"
+    "Bearer\s+[a-zA-Z0-9_-]{20,}"
 )
 
 # Dangerous exec patterns
@@ -146,6 +142,7 @@ scan_skill() {
     # ── 1. Secret patterns ────────────────────────────────────────────
     local secret_regex
     secret_regex=$(build_secret_regex)
+    # NOTE: exclude .md (docs trigger false positives) and /tests/ (test fixtures)
     while IFS= read -r file; do
         skill_critical=$((skill_critical + 1))
         echo "  🔴 SECRET: $file" >> "$FOUND_SECRETS_TMP"
@@ -156,8 +153,11 @@ scan_skill() {
             [[ -n "$secret_line" ]] && encrypt_to_notion "${skill_name}-$(basename "$file")" "$secret_line"
         fi
     done < <(grep -rEl "$secret_regex" "$skill_path" \
-        --include="*.js" --include="*.ts" --include="*.sh" --include="*.py" \
-        --include="*.json" $EXCLUDE_ARGS 2>/dev/null | grep -v node_modules | grep -v "\.git" || true)
+        --include="*.js" --include="*.ts" --include="*.sh" --include="*.py" --include="*.json" \
+        $EXCLUDE_ARGS 2>/dev/null \
+        | grep -v "\.md$" \
+        | grep -v "/tests/" \
+        | grep -v node_modules | grep -v "\.git" || true)
 
     # ── 2. Dangerous exec patterns ─────────────────────────────────────
     local exec_regex
@@ -167,7 +167,9 @@ scan_skill() {
         echo "  🟠 EXEC: $file" >> "$FOUND_SECRETS_TMP"
     done < <(grep -rEl "$exec_regex" "$skill_path" \
         --include="*.js" --include="*.ts" --include="*.sh" \
-        $EXCLUDE_ARGS 2>/dev/null | grep -v node_modules | grep -v "\.git" || true)
+        $EXCLUDE_ARGS 2>/dev/null \
+        | grep -v "/tests/" \
+        | grep -v node_modules | grep -v "\.git" || true)
 
     # ── 3. Shell injection surfaces ────────────────────────────────────
     local injection_regex
@@ -177,7 +179,9 @@ scan_skill() {
         echo "  🟡 INJECTION: $file" >> "$FOUND_SECRETS_TMP"
     done < <(grep -rEl "$injection_regex" "$skill_path" \
         --include="*.js" --include="*.ts" --include="*.sh" \
-        $EXCLUDE_ARGS 2>/dev/null | grep -v node_modules | grep -v "\.git" || true)
+        $EXCLUDE_ARGS 2>/dev/null \
+        | grep -v "/tests/" \
+        | grep -v node_modules | grep -v "\.git" || true)
 
     # ── 4. Network egress ─────────────────────────────────────────────
     local network_regex
