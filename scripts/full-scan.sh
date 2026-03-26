@@ -246,9 +246,8 @@ scan_dir() {
         printf "  Scanning %-28s ..." "$skill_name"
 
         local result
-        result=$(scan_skill "$skill_path")
-        local skill_critical skill_high skill_medium skill_low skill_info
-        read -r skill_critical skill_high skill_medium skill_low skill_info <<< "$result"
+        result=$(scan_skill "$skill_path" 2>/dev/null | tail -1 || echo "0 0 0 0 0")
+        read -r skill_critical skill_high skill_medium skill_low skill_info <<< "${result:-0 0 0 0 0}"
 
         total_critical=$((total_critical + skill_critical))
         total_high=$((total_high + skill_high))
