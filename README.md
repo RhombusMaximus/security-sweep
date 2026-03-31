@@ -2,7 +2,7 @@
 
 A comprehensive security scanner for OpenClaw skills and plugins. Scans for hardcoded secrets, dangerous exec patterns, dependency vulnerabilities, network egress, and shell injection surfaces.
 
-When secrets are found, they can be **auto-encrypted to Notion** — never stored in plain text.
+> **📝 Preferred secrets store: 1Password** — Use 1Password as your primary secrets store. It provides audit logs, access controls, and service account tokens for automation. See the 1Password skill for setup. The Notion encrypted store is deprecated.
 
 ---
 
@@ -12,7 +12,7 @@ When secrets are found, they can be **auto-encrypted to Notion** — never store
 - 🐚 **Exec Pattern Analysis** — Finds dangerous `exec()`, `spawn()`, `eval()`, and shell injection surfaces
 - 📦 **NPM Audit** — Checks for vulnerable dependencies in skills with `package.json`
 - 🌐 **Network Egress** — Reports unexpected outbound connections
-- 🔒 **Auto-Encrypt to Notion** — Encrypts found secrets to your Notion secrets store (AES-256-GCM)
+- 🔒 **Secrets Store: 1Password** — Found secrets should be stored in 1Password (preferred) or a dedicated secrets manager — never in plaintext files or transcripts
 - 🚀 **CI-Ready** — Exit codes and structured output for use in GitHub Actions
 
 ---
@@ -67,33 +67,30 @@ Sample output:
 
 ---
 
-## ⚠️ Warning: `--encrypt-found` Requires a Secure Private Skillbase
+## ⚠️ Warning: Found Secrets Must Go to 1Password
 
-The `--encrypt-found` flag is powerful but **assumes your private skill directory is already secure**. It encrypts found secrets to Notion before removal — but:
+When secrets are found during a scan, they must be stored in 1Password — not in plaintext files, chat, or shell history.
 
-- **If your private skills already contain real secrets, those secrets are already exposed** — the scan is read-only and doesn't cause leaks
-- **If your Notion is compromised, encrypted blobs are useless without the master password** — but the attacker gets the ciphertext
-- **The encryption protects secrets at rest in Notion** — it does NOT protect secrets in transit or in your shell history
+**Best practice:**
+1. Add the secret to 1Password immediately
+2. If the secret is a leaked/rotated credential, invalidate the old one first
+3. Never commit secrets to git, even "temporarily"
 
-**You should NOT use `--encrypt-found` if:**
-- Your private skillbase may contain uncommitted work-in-progress with real credentials
-- You haven't set up the Notion secrets store yet
-- You're scanning a third-party skill you don't control
+**If scanning a skill that needs a secret:** Document the required env vars in SKILL.md. The skill should pull secrets from 1Password at runtime, not store them locally.
 
-**Always review the findings before any auto-encryption** — the flag is off by default for this reason.
+## Secrets Storage: 1Password (Preferred)
 
-> **⚠️ CRITICAL:** The master password is the only way to decrypt your secrets. **Forget it and the secrets are permanently unrecoverable** — AES-256-GCM with PBKDF2 (100k iterations) is intentionally slow and cannot be brute-forced. Store it in a password manager.
-
-## Auto-Encrypt to Notion
-
-When `--encrypt-found` is used and `NOTION_MASTER_PASSWORD` is set, found secrets are encrypted to your Notion secrets store before being removed.
+Found secrets should be encrypted and stored in 1Password. This requires:
+1. `op` CLI installed and authenticated (see 1Password skill)
+2. The secret added to your vault before removal from code
 
 ```bash
-export NOTION_MASTER_PASSWORD="your-master-password"
-bash scripts/full-scan.sh --encrypt-found [options]
+# Add to vault
+op item create --category="API Credential" --title="My Service Key" \
+  --vault "My Vault" "credential=$SECRET_VALUE"
 ```
 
-Requires `notion-secrets.js` in `~/.openclaw/scripts/`. See `references/notion-encryption.md` for setup.
+The security sweep does NOT auto-encrypt — it flags findings for manual remediation. This is intentional: auto-encryption without review can cause data loss.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: security-sweep
 description: Security scanner for OpenClaw skills and plugins. Scans for hardcoded secrets, dangerous exec patterns, dependency vulnerabilities, and network egress. Use when auditing installed skills/plugins, before publishing to ClawHub, or when a user requests a security review of skills or plugins.
-version: 1.1.1
+version: 1.2.0
 ---
 
 # Security Sweep — Skill & Plugin Auditor
@@ -64,14 +64,24 @@ bash ~/.openclaw/workspace/skills/security-sweep/scripts/npm-audit.sh \
 
 | Level | Finding | Action |
 |-------|---------|--------|
-| 🔴 CRITICAL | Hardcoded secret (api_key, token, password) | Remove immediately, rotate credential |
+| 🔴 CRITICAL | Hardcoded secret (api_key, token, password) | Rotate credential, store in 1Password, remove from code |
 | 🔴 CRITICAL | `eval()` on untrusted input | Replace with safe alternative |
 | 🟠 HIGH | `exec()`, `spawn()` with string concatenation | Use execFile with array args |
-| 🟠 HIGH | Shell injection surface (bash -c, ${var} in shell) | Sanitize or use execFile |
+| 🟠 HIGH | Shell injection surface (bash -c, `${var}` in shell) | Sanitize or use execFile |
 | 🟡 MEDIUM | npm audit findings (any severity) | Review and update dependencies |
 | 🟡 MEDIUM | Unexpected network egress | Verify necessity, document purpose |
 | 🟢 LOW | File permission too broad (0o777) | Restrict to 0o644/0o755 |
 | 🟢 INFO | process.env leak in logs | Ensure logs redact env vars |
+
+## Secrets Remediation
+
+When a secret is found:
+1. **Rotate** the credential (invalidate the old one via provider dashboard)
+2. **Add** new credential to 1Password vault
+3. **Remove** from source code
+4. **Verify** skill scans clean after cleanup
+
+Secrets found should go to 1Password — not to Notion, not to plaintext files, not to chat.
 
 ## Reporting
 
@@ -98,7 +108,17 @@ Before publishing a skill to ClawHub:
 4. Confirm npm audit passes with 0 vulnerabilities
 5. Document all required env vars in SKILL.md
 
+## References
+
+- `references/1password.md` — **preferred** secrets store for found credentials
+- `references/notion-encryption.md` — ⚠️ deprecated; Notion blobs are no longer used for secrets
+
 ## Notes
+
+- Bundled skills (read-only, no write during scan)
+- Workspace skills are editable — fix findings directly
+- Some `execFile` usage is legitimate (openclaw CLI calls) — review context
+- `process.env` access is fine; concern is env vars *leaking* to untrusted processes
 
 - Bundled skills (read-only, no write during scan)
 - Workspace skills are editable — fix findings directly

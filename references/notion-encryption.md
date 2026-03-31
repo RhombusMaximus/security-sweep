@@ -1,121 +1,45 @@
-# Notion Encryption System
+# ⚠️ DEPRECATED: Notion Encryption for Security Sweeps
 
-How secrets found during a security sweep are encrypted and stored in Notion.
+> **This approach is deprecated as of 2026-03-30.** Use 1Password instead — see `1password.md` in this directory.
 
-## Overview
+## Why 1Password is Better
 
-When the security sweep finds hardcoded secrets, you can encrypt them to your Notion workspace using `notion-secrets.js` — a local encryption tool that wraps secrets in AES-256-GCM before uploading to Notion.
+- No blob pagination issues (Notion API truncates block content across pages)
+- No master password to manage and risk losing
+- Audit logs per access
+- No encryption/decryption complexity
+- Works reliably on WSL2 (no PolKit dependency)
 
-**What Notion stores:** encrypted blobs — completely unreadable without the master password.
-**What an attacker needs:** the master password + the Notion page ID.
+## When Notion Encryption Was Used
 
-## Architecture
+- Before 2026-03-30: secrets were encrypted to Notion pages as AES-256-GCM blobs
+- Notion-secrets.js was the encryption tool
+- Master password stored in 1Password (the irony wasn't lost on us)
 
+## If You Must Use It
+
+The scripts and code are still in `~/.openclaw/scripts/notion-secrets.js` and the Notion secrets DB is archived but not deleted. If you need to recover old Notion-encrypted secrets:
+
+1. Get the master password from 1Password ("Notion Master Password")
+2. Fetch the archived pages from Notion
+3. Decrypt with `node notion-secrets.js decrypt "<blob>"`
+4. Migrate to 1Password as the new permanent home
+
+## Migration Completed 2026-03-30
+
+All 6 Notion-encrypted secrets (Gemini, Vercel, OpenAI, Anthropic, ClawHub, Resend) were decrypted and migrated to 1Password. The Notion secrets database pages were archived.
+
+## Key Lesson
+
+Notion API returns paginated block children. Always fetch full blocks:
+```python
+# Wrong — truncated blob
+GET /blocks/{id}/children
+
+# Right — iterate has_more
+GET /blocks/{id}/children?page_size=100
+while has_more:
+    collect blocks
+    GET /blocks/{id}/children?page_size=100&start_cursor={cursor}
 ```
-Your machine                          Notion (cloud)
-┌──────────────────────┐             ┌──────────────────────┐
-│  Master Password      │             │                      │
-│       ↓               │             │  Encrypted blob       │
-│  PBKDF2 (100k iter)  │             │  [salt][iv][tag][ct] │
-│       ↓               │             │                      │
-│  AES-256-GCM encrypt │  ──push──>  │  Page: scan-results   │
-│                      │             │                      │
-│  AES-256-GCM decrypt │  ←─pull──  │  (Notion API)        │
-│       ↓               │             │                      │
-│  Plaintext secret    │             └──────────────────────┘
-└──────────────────────┘
-```
-
-## Setup
-
-### 1. Get a Notion API Integration
-
-1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Create a new integration ("Security Sweep")
-3. Copy the internal API token
-4. Store it: `node ~/.openclaw/scripts/notion-secrets.js put notion_api_key "<your-token>"`
-5. Share the "RhomBot Secrets" database with your integration
-
-### 2. Store the integration token (encrypted)
-
-```bash
-# The token is stored encrypted — never in plain text
-node ~/.openclaw/scripts/notion-secrets.js put notion_api_key "<your-token>"
-```
-
-### 3. Set the master password
-
-The master password is derived into an encryption key — **never stored**.
-
-```bash
-# Recommended: use environment variable (never in shell history)
-export NOTION_MASTER_PASSWORD="your-strong-master-password"
-
-# For one-off commands:
-NOTION_MASTER_PASSWORD="your-password" node ~/.openclaw/scripts/notion-secrets.js <command>
-```
-
-> ⚠️ **CRITICAL:** The master password is the only way to decrypt your secrets. **Forget it and the secrets are permanently unrecoverable** — AES-256-GCM with PBKDF2 (100k iterations) is intentionally slow and cannot be brute-forced. Store it in a password manager.
-
-## Usage
-
-```bash
-# Store a secret (use env var — avoids interactive prompt stdin issues)
-NOTION_MASTER_PASSWORD="your-password" node ~/.openclaw/scripts/notion-secrets.js put my_api_key "sk-123..."
-
-# List stored secrets (shows names only)
-node ~/.openclaw/scripts/notion-secrets.js list
-
-# Get a secret's encrypted blob
-node ~/.openclaw/scripts/notion-secrets.js get my_api_key
-
-# Decrypt a blob
-node ~/.openclaw/scripts/notion-secrets.js decrypt "<blob>"
-
-# Quick local encrypt (for testing)
-node ~/.openclaw/scripts/notion-secrets.js encrypt "plaintext"
-```
-
-## How Encryption Works
-
-**Algorithm:** AES-256-GCM
-**Key derivation:** PBKDF2 with SHA-512, 100,000 iterations
-**IV:** Random 16 bytes per encryption
-**Tag:** 16 bytes (authentication tag)
-
-```
-plaintext → PBKDF2(pw, salt) → AES-256-GCM → [salt (32)][iv (16)][tag (16)][ciphertext] → base64
-```
-
-## Security Properties
-
-| Property | Protection |
-|----------|------------|
-| Encrypted at rest | Notion only sees ciphertext |
-| Key derivation | Brute-force resistant (100k PBKDF2 iterations) |
-| Authenticated encryption | Tampering is detectable |
-| No password storage | Master password never touches disk |
-| Per-secret salt | Same secret encrypts differently each time |
-
-## Important Notes
-
-- **Use `NOTION_MASTER_PASSWORD` env var for scripts** — interactive prompts can have stdin mixing issues in non-TTY environments
-- **The `put` command requires the env var** for reliable operation
-- **`list` and `get` do not need a password** — they only read encrypted blobs (values stay encrypted client-side)
-- **Decrypt requires the password** — the blob is useless without it
-
-## Limitations
-
-- The master password must be set via env var in CI/non-interactive environments
-- Notion API rate limits apply (~3 requests/second)
-- If Notion is down, secrets are unavailable
-
-## For CI/CD
-
-```bash
-# In CI, inject the master password as a secret environment variable:
-export NOTION_MASTER_PASSWORD="$NOTION_MASTER_PASSWORD"
-bash scripts/full-scan.sh --encrypt-found [options]
-```
-
-The password never appears in logs — only the "Stored" confirmation is visible.
+This bit us — the first page appeared to work but the blob was incomplete.

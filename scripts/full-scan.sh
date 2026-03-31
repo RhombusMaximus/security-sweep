@@ -13,8 +13,6 @@ BUILTIN_DIR=""
 WORKSPACE_DIR=""
 OUTPUT_FILE=""
 QUIET=false
-ENCRYPT_FOUND=false
-NOTION_SECRETS_SCRIPT="${HOME}/.openclaw/scripts/notion-secrets.js"
 
 # Patterns for secret detection — tightened to reduce false positives
 # Only match actual key=value patterns, not documentation text
@@ -78,14 +76,13 @@ while [[ $# -gt 0 ]]; do
         --workspace) WORKSPACE_DIR="$2"; shift 2 ;;
         --output) OUTPUT_FILE="$2"; shift 2 ;;
         --quiet) QUIET=true; shift ;;
-        --encrypt-found) ENCRYPT_FOUND=true; shift ;;
         -h|--help)
             echo "Usage: full-scan.sh [options]"
             echo "  --builtin DIR     Bundled OpenClaw skills directory"
             echo "  --workspace DIR   Workspace skills directory"
             echo "  --output FILE     Output report file"
             echo "  --quiet           Suppress per-skill output"
-            echo "  --encrypt-found   Encrypt found secrets to Notion"
+            echo "  --quiet           Suppress per-skill output"
             exit 0
             ;;
         *) echo "Unknown: $1"; exit 1 ;;
@@ -102,30 +99,6 @@ FOUND_SECRETS_TMP=$(mktemp)
     echo "  ${REPORT_DATE}"
     echo "═══════════════════════════════════════════════════════════════"
 } > "$REPORT_FILE_TMP"
-
-# ── Encrypt a found secret to Notion ────────────────────────────────────────
-encrypt_to_notion() {
-    local label="$1"
-    local secret="$2"
-    local notion_script="$NOTION_SECRETS_SCRIPT"
-
-    if [[ ! -f "$notion_script" ]]; then
-        echo "    ⚠️  notion-secrets.js not found — skipping Notion store"
-        return
-    fi
-
-    local master_pw="${NOTION_MASTER_PASSWORD:-}"
-    if [[ -z "$master_pw" ]]; then
-        echo "    ⚠️  NOTION_MASTER_PASSWORD env not set — skipping Notion store"
-        return
-    fi
-
-    if echo "$master_pw" | node "$notion_script" put "scan-${label}" "$secret" 2>/dev/null | grep -q "Stored"; then
-        echo "    🔒 Encrypted to Notion as 'scan-${label}'"
-    else
-        echo "    ⚠️  Failed to encrypt to Notion"
-    fi
-}
 
 # ── Scan one skill directory ─────────────────────────────────────────────────
 scan_skill() {
@@ -146,12 +119,6 @@ scan_skill() {
     while IFS= read -r file; do
         skill_critical=$((skill_critical + 1))
         echo "  🔴 SECRET: $file" >> "$FOUND_SECRETS_TMP"
-
-        if [[ "$ENCRYPT_FOUND" == "true" ]]; then
-            local secret_line
-            secret_line=$(grep -rEn "$secret_regex" "$file" 2>/dev/null | head -1 || true)
-            [[ -n "$secret_line" ]] && encrypt_to_notion "${skill_name}-$(basename "$file")" "$secret_line"
-        fi
     done < <(grep -rEl "$secret_regex" "$skill_path" \
         --include="*.js" --include="*.ts" --include="*.sh" --include="*.py" --include="*.json" \
         $EXCLUDE_ARGS 2>/dev/null \
