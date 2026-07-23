@@ -1,4 +1,5 @@
-# Security Sweep for OpenClaw
+# This project has been ABANDONED 
+Security Sweep for OpenClaw
 
 A comprehensive security scanner for OpenClaw skills and plugins. Scans for hardcoded secrets, dangerous exec patterns, dependency vulnerabilities, network egress, and shell injection surfaces.
 
